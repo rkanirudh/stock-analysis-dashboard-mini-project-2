@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nifty 50 Stock Analysis – Power BI Dashboard</title>
+  <meta name="description" content="Interactive Power BI-style dashboard for Nifty 50 Stock Analysis covering executive KPIs, sector performance, monthly trends, and risk-return analysis." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg-primary: #0F172A;
+      --bg-secondary: #1E293B;
+      --bg-card: #1E293B;
+      --bg-card-hover: #263349;
+      --accent-blue: #0EA5E9;
+      --accent-teal: #06B6D4;
+      --gain-green: #10B981;
+      --loss-red: #EF4444;
+      --amber: #F59E0B;
+      --purple: #8B5CF6;
+      --muted: #64748B;
+      --text-primary: #F1F5F9;
+      --text-secondary: #94A3B8;
+      --border: #334155;
+      --gradient-header: linear-gradient(135deg, #0EA5E9 0%, #6366F1 50%, #8B5CF6 100%);
+      --shadow: 0 4px 24px rgba(0,0,0,0.4);
+      --shadow-lg: 0 8px 40px rgba(0,0,0,0.6);
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg-primary); color: var(--text-primary); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+    .top-nav { display: flex; align-items: center; justify-content: space-between; background: var(--bg-secondary); border-bottom: 1px solid var(--border); padding: 0 24px; height: 56px; flex-shrink: 0; box-shadow: var(--shadow); }
+    .nav-brand { display: flex; align-items: center; gap: 12px; }
+    .nav-logo { width: 32px; height: 32px; background: var(--gradient-header); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: white; }
+    .nav-title { font-size: 15px; font-weight: 700; }
+    .nav-subtitle { font-size: 11px; color: var(--text-secondary); margin-left: 4px; }
+    .nav-tabs { display: flex; gap: 4px; }
+    .nav-tab { padding: 6px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.25s; border: 1px solid transparent; color: var(--text-secondary); background: transparent; font-family: 'Inter', sans-serif; }
+    .nav-tab:hover { background: rgba(14,165,233,0.1); color: var(--accent-blue); border-color: rgba(14,165,233,0.2); }
+    .nav-tab.active { background: var(--gradient-header); color: white; box-shadow: 0 2px 12px rgba(14,165,233,0.3); }
+    .nav-meta { display: flex; gap: 12px; align-items: center; }
+    .nav-badge { font-size: 11px; color: var(--text-secondary); background: rgba(100,116,139,0.15); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border); }
+    .nav-badge span { color: var(--gain-green); font-weight: 600; }
+    .slides-wrapper { flex: 1; overflow: hidden; position: relative; }
+    .slide { position: absolute; inset: 0; overflow-y: auto; padding: 18px 22px; opacity: 0; pointer-events: none; transition: opacity 0.35s ease, transform 0.35s ease; transform: translateX(24px); }
+    .slide.active { opacity: 1; pointer-events: all; transform: translateX(0); }
+    .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+    .kpi-card { background: linear-gradient(145deg, #1E293B, #1a2540); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; position: relative; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; box-shadow: var(--shadow); }
+    .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 12px 12px 0 0; }
+    .kpi-card.blue::before { background: var(--accent-blue); }
+    .kpi-card.green::before { background: var(--gain-green); }
+    .kpi-card.amber::before { background: var(--amber); }
+    .kpi-card.purple::before { background: var(--purple); }
+    .kpi-card.red::before { background: var(--loss-red); }
+    .kpi-card.teal::before { background: var(--accent-teal); }
+    .kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+    .kpi-label { font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 7px; }
+    .kpi-value { font-size: 26px; font-weight: 800; color: var(--text-primary); line-height: 1; letter-spacing: -0.5px; }
+    .kpi-value.gain { color: var(--gain-green); }
+    .kpi-value.loss { color: var(--loss-red); }
+    .kpi-value.amber-v { color: var(--amber); }
+    .kpi-sub { font-size: 10px; color: var(--text-secondary); margin-top: 5px; }
+    .kpi-icon { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 26px; opacity: 0.08; }
+    .chart-grid { display: grid; gap: 14px; }
+    .chart-grid.two-col { grid-template-columns: 1fr 1fr; }
+    .chart-card { background: linear-gradient(145deg, #1E293B, #1a2540); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; box-shadow: var(--shadow); transition: box-shadow 0.2s; }
+    .chart-card:hover { box-shadow: var(--shadow-lg); }
+    .chart-title { font-size: 11.5px; font-weight: 700; color: var(--text-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .chart-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .slide-page-header { background: linear-gradient(135deg, rgba(14,165,233,0.07), rgba(99,102,241,0.05)); border: 1px solid rgba(14,165,233,0.15); border-radius: 12px; padding: 14px 22px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+    .ph-title { font-size: 17px; font-weight: 800; letter-spacing: -0.4px; }
+    .ph-sub { font-size: 11px; color: var(--text-secondary); margin-top: 3px; }
+    .ph-right { display: flex; gap: 10px; align-items: center; }
+    .badge-green { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25); color: var(--gain-green); font-size: 11px; font-weight: 600; padding: 5px 12px; border-radius: 7px; }
+    .badge-page { font-size: 11px; font-weight: 600; color: var(--text-secondary); background: var(--bg-primary); border: 1px solid var(--border); padding: 5px 10px; border-radius: 7px; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .data-table th { background: rgba(14,165,233,0.08); color: var(--accent-blue); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; padding: 8px 11px; text-align: left; border-bottom: 1px solid var(--border); }
+    .data-table td { padding: 7px 11px; border-bottom: 1px solid rgba(51,65,85,0.5); color: var(--text-secondary); }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: rgba(14,165,233,0.03); color: var(--text-primary); }
+    .td-gain { color: var(--gain-green) !important; font-weight: 600; }
+    .td-loss { color: var(--loss-red) !important; font-weight: 600; }
+    .td-ticker { color: var(--accent-blue) !important; font-weight: 700; font-size: 12px; }
+    .td-hi { color: var(--text-primary) !important; font-weight: 600; }
+    .td-amber { color: var(--amber) !important; font-weight: 600; }
+    .table-scroll { max-height: 255px; overflow-y: auto; }
+    .risk-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+    .r-high { background: rgba(239,68,68,0.15); color: var(--loss-red); border: 1px solid rgba(239,68,68,0.3); }
+    .r-mid  { background: rgba(245,158,11,0.15); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+    .r-low  { background: rgba(16,185,129,0.15); color: var(--gain-green); border: 1px solid rgba(16,185,129,0.3); }
+    .bottom-nav { display: flex; align-items: center; justify-content: center; gap: 10px; background: var(--bg-secondary); border-top: 1px solid var(--border); padding: 11px; flex-shrink: 0; }
+    .b-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); cursor: pointer; transition: all 0.25s; }
+    .b-dot.active { background: var(--accent-blue); width: 22px; border-radius: 4px; }
+    .b-dot:hover:not(.active) { background: var(--muted); }
+    .nav-arrow { background: #1E293B; border: 1px solid var(--border); color: var(--text-secondary); padding: 5px 14px; border-radius: 7px; cursor: pointer; font-size: 12px; font-weight: 600; font-family: 'Inter', sans-serif; transition: all 0.2s; }
+    .nav-arrow:hover { background: rgba(14,165,233,0.1); color: var(--accent-blue); border-color: rgba(14,165,233,0.3); }
+    .page-label { font-size: 11px; color: var(--text-secondary); min-width: 130px; text-align: center; font-weight: 500; }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<nav class="top-nav">
+  <div class="nav-brand">
+    <div class="nav-logo">N50</div>
+    <div><div class="nav-title">Nifty 50 Stock Analysis <span class="nav-subtitle">| Power BI Dashboard</span></div></div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="goTo(0)" id="tab0">📊 Executive Overview</button>
+    <button class="nav-tab" onclick="goTo(1)" id="tab1">🏭 Sector Analysis</button>
+    <button class="nav-tab" onclick="goTo(2)" id="tab2">📅 Monthly Trends</button>
+    <button class="nav-tab" onclick="goTo(3)" id="tab3">⚡ Risk &amp; Return</button>
+  </div>
+  <div class="nav-meta">
+    <div class="nav-badge">Period: <span>Oct 2023 – Nov 2024</span></div>
+    <div class="nav-badge">Stocks: <span>50</span></div>
+  </div>
+</nav>
+
+<div class="slides-wrapper">
+
+  <!-- SLIDE 1 -->
+  <div class="slide active" id="s0">
+    <div class="slide-page-header">
+      <div><div class="ph-title">📊 Nifty 50 — Executive Market Overview</div><div class="ph-sub">High-level KPIs · Top Gainers &amp; Losers · Market Summary Indicators</div></div>
+      <div class="ph-right"><div class="badge-green">✅ Oct 2023 – Nov 2024</div><div class="badge-page">Page 1 / 4</div></div>
+    </div>
+    <div class="kpi-row">
+      <div class="kpi-card blue"><div class="kpi-label">Total Companies</div><div class="kpi-value">50</div><div class="kpi-sub">Nifty 50 constituents</div><div class="kpi-icon">🏢</div></div>
+      <div class="kpi-card purple"><div class="kpi-label">Total Records</div><div class="kpi-value">14,200</div><div class="kpi-sub">Daily price observations</div><div class="kpi-icon">📋</div></div>
+      <div class="kpi-card amber"><div class="kpi-label">Avg Closing Price</div><div class="kpi-value amber-v">₹2,449</div><div class="kpi-sub">Across all 50 stocks</div><div class="kpi-icon">💰</div></div>
+      <div class="kpi-card green"><div class="kpi-label">Avg Yearly Return</div><div class="kpi-value gain">+32.9%</div><div class="kpi-sub">Oct '23 – Nov '24</div><div class="kpi-icon">📈</div></div>
+    </div>
+    <div class="chart-grid two-col" style="margin-bottom:14px;">
+      <div class="chart-card"><div class="chart-title"><span class="chart-dot" style="background:var(--gain-green)"></span>Top 10 Gainer Stocks (1-Year Return %)</div><canvas id="gainersChart" height="255"></canvas></div>
+      <div class="chart-card"><div class="chart-title"><span class="chart-dot" style="background:var(--loss-red)"></span>Top 10 Loser Stocks (1-Year Return %)</div><canvas id="losersChart" height="255"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span class="chart-dot" style="background:var(--accent-blue)"></span>Market Summary &amp; Dataset Indicators</div>
+      <table class="data-table"><thead><tr><th>Metric</th><th>Value</th><th>Description</th></tr></thead><tbody>
+        <tr><td class="td-hi">Total Records</td><td class="td-hi">14,200</td><td>50 stocks × 284 trading days</td></tr>
+        <tr><td class="td-hi">Total Companies</td><td class="td-hi">50</td><td>Nifty 50 index constituents</td></tr>
+        <tr><td class="td-hi">Analysis Period</td><td class="td-gain">Oct 2023 – Nov 2024</td><td>~13 months of daily OHLCV data</td></tr>
+        <tr><td class="td-hi">Highest Stock Price</td><td class="td-amber">₹13,680.00</td><td>Peak close price in dataset</td></tr>
+        <tr><td class="td-hi">Lowest Stock Price</td><td class="td-hi">₹114.60</td><td>Minimum close price in dataset</td></tr>
+        <tr><td class="td-hi">Avg Closing Price</td><td class="td-hi">₹2,449.42</td><td>Mean across all records</td></tr>
+        <tr><td class="td-hi">Avg Trading Volume</td><td class="td-hi">6,833,475</td><td>Average daily volume per stock</td></tr>
+        <tr><td class="td-hi">Total Sectors</td><td class="td-gain">20</td><td>Distinct industry classifications</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+
+  <!-- SLIDE 2 -->
+  <div class="slide" id="s1">
+    <div class="slide-page-header">
+      <div><div class="ph-title">🏭 Sector Performance &amp; Constituent Distribution</div><div class="ph-sub">20 Sectors · Company Count · Avg Close Price · Trading Volume</div></div>
+      <div class="ph-right"><div class="badge-green">20 Sectors Analyzed</div><div class="badge-page">Page 2 / 4</div></div>
+    </div>
+    <div class="chart-grid two-col" style="margin-bottom:14px;">
+      <div class="chart-card"><div class="chart-title"><span class="chart-dot" style="background:var(--accent-blue)"></span>Companies by Sector</div><canvas id="secCountChart" height="270"></canvas></div>
+      <div class="chart-card"><div class="chart-title"><span class="chart-dot" style="background:var(--amber)"></span>Avg Closing Price by Sector (₹)</div><canvas id="secCloseChart" height="270"></canvas></div>
+    </div>
+    <div class="chart-grid two-col">
+      <div class="chart-card"><div class="chart-title"><span class="chart-dot" style="background:var(--purple)"></span>Average Trading Volume by Sector</div><canvas id="secVolChart" height="255"></canvas></div>
+      <div class="chart-card"><div class="chart-title"><span class="chart-dot" style="background:var(--accent-teal)"></span>Sector Comparative Performance Matrix</div>
+        <div class="table-scroll"><table class="data-table" id="secTable"></table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3 -->
+  <div class="slide" id="s2">
+    <div class="slide-page-header">
+      <div><div class="ph-title">📅 Monthly Price Trends &amp; Volume Dynamics</div><div class="ph-sub">12-Month Seasonality · Combo Chart · Monthly Breakdown · Performance Grid</div></div>
+      <div class="ph-right"><div class="badge-green">12 Months Covered</div><div class="badge-page">Page 3 / 4</div></div>
+    </div>
+    <div class="kpi-row" style="margin-bottom:14px;">
+      <div class="kpi-card blue"><div class="kpi-label">Peak Price Month</div><div class="kpi-value" style="font-size:19px">September</div><div class="kpi-sub">Avg ₹2,838 close</div></div>
+      <div class="kpi-card red"><div class="kpi-label">Lowest Price Month</div><div class="kpi-value loss" style="font-size:19px">December</div><div class="kpi-sub">Avg ₹2,225 close</div></div>
+      <div class="kpi-card green"><div class="kpi-label">Peak Volume Month</div><div class="kpi-value" style="font-size:19px">June</div><div class="kpi-sub">9.88M avg volume</div></div>
+      <div class="kpi-card amber"><div class="kpi-label">Lowest Volume Month</div><div class="kpi-value amber-v" style="font-size:19px">November</div><div class="kpi-sub">5.11M avg volume</div></div>
+    </div>
+    <div class="chart-card" style="margin-bottom:14px;">
+      <div class="chart-title"><span class="chart-dot" style="background:var(--accent-blue)"></span>Monthly Avg Close Price vs Avg Trading Volume (Combo Chart)</div>
+      <canvas id="monthlyCombo" height="170"></canvas>
+    </div>
+    <div class="chart-grid two-col">
+      <div class="chart-card"><div class="chart-title"><span class="chart-dot" style="background:var(--accent-teal)"></span>Average Closing Price by Month (₹)</div><canvas id="monthlyClose" height="195"></canvas></div>
+      <div class="chart-card"><div class="chart-title"><span class="chart-dot" style="background:var(--purple)"></span>Monthly Breakdown Performance Table</div>
+        <div class="table-scroll"><table class="data-table" id="monthlyTable"></table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4 -->
+  <div class="slide" id="s3">
+    <div class="slide-page-header">
+      <div><div class="ph-title">⚡ Risk vs Return &amp; Volatility Analysis</div><div class="ph-sub">Scatter Plot · Volatility Ranking · Risk Segmentation · Full Stock Leaderboard</div></div>
+      <div class="ph-right"><div class="badge-green">50 Stocks Analyzed</div><div class="badge-page">Page 4 / 4</div></div>
+    </div>
+    <div class="kpi-row" style="margin-bottom:14px;">
+      <div class="kpi-card red"><div class="kpi-label">High Risk Stocks</div><div class="kpi-value loss">6</div><div class="kpi-sub">Volatility ≥ 2.0%</div><div class="kpi-icon">🔴</div></div>
+      <div class="kpi-card amber"><div class="kpi-label">Moderate Risk Stocks</div><div class="kpi-value amber-v">18</div><div class="kpi-sub">Volatility 1.5–2.0%</div><div class="kpi-icon">🟡</div></div>
+      <div class="kpi-card green"><div class="kpi-label">Low Risk Stocks</div><div class="kpi-value gain">26</div><div class="kpi-sub">Volatility &lt; 1.5%</div><div class="kpi-icon">🟢</div></div>
+      <div class="kpi-card blue"><div class="kpi-label">Top Gainer Return</div><div class="kpi-value gain">+223%</div><div class="kpi-sub">TRENT (Best Performer)</div><div class="kpi-icon">🏆</div></div>
+    </div>
+    <div class="chart-grid two-col" style="margin-bottom:14px;">
+      <div class="chart-card"><div class="chart-title"><span class="chart-dot" style="background:var(--accent-blue)"></span>Risk vs Return Scatter Plot (All 50 Stocks)</div><canvas id="scatterChart" height="270"></canvas></div>
+      <div class="chart-card"><div class="chart-title"><span class="chart-dot" style="background:var(--loss-red)"></span>Stock Volatility Ranking — Top 20 (Color by Risk)</div><canvas id="volChart" height="270"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span class="chart-dot" style="background:var(--gain-green)"></span>Full Risk-Return Leaderboard — All 50 Nifty Stocks</div>
+      <div class="table-scroll" style="max-height:210px;"><table class="data-table" id="rrTable"></table></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="bottom-nav">
+  <button class="nav-arrow" onclick="prev()">← Prev</button>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <div class="b-dot active" onclick="goTo(0)" id="d0"></div>
+    <div class="b-dot" onclick="goTo(1)" id="d1"></div>
+    <div class="b-dot" onclick="goTo(2)" id="d2"></div>
+    <div class="b-dot" onclick="goTo(3)" id="d3"></div>
+  </div>
+  <div class="page-label" id="pgLabel">Executive Overview</div>
+  <button class="nav-arrow" onclick="next()">Next →</button>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const GAINERS = [{t:'TRENT',r:223.09},{t:'BEL',r:101.76},{t:'M&M',r:95.98},{t:'BAJAJ-AUTO',r:89.01},{t:'BHARTIARTL',r:69.60},{t:'POWERGRID',r:68.85},{t:'BPCL',r:67.48},{t:'HEROMOTOCO',r:58.98},{t:'SUNPHARMA',r:57.28},{t:'HCLTECH',r:53.26}];
+const LOSERS  = [{t:'INDUSINDBK',r:-30.46},{t:'ASIANPAINT',r:-21.94},{t:'BAJFINANCE',r:-16.11},{t:'ADANIENT',r:-6.67},{t:'HINDUNILVR',r:-0.96},{t:'NESTLEIND',r:0.71},{t:'KOTAKBANK',r:1.99},{t:'BAJAJFINSV',r:2.55},{t:'TITAN',r:3.52},{t:'MARUTI',r:6.93}];
+const SECTORS = [
+  {s:'Banking',c:6,ac:1295.38,av:11884644},{s:'Automobile',c:6,ac:5395.56,av:2936178},{s:'FMCG',c:5,ac:2361.46,av:3801391},
+  {s:'Information Technology',c:5,ac:1798.10,av:4404313},{s:'Energy',c:4,ac:592.33,av:14837923},{s:'Pharmaceuticals',c:3,ac:1396.79,av:2026205},
+  {s:'Financial Services',c:3,ac:3771.24,av:1389596},{s:'Metals',c:3,ac:544.25,av:17721745},{s:'Power',c:2,ac:316.69,av:17084516},
+  {s:'Insurance',c:2,ac:1085.62,av:2864533},{s:'Cement',c:2,ac:6310.31,av:576607},{s:'Telecommunication',c:1,ac:1293.23,av:6171184},
+  {s:'Infrastructure',c:1,ac:1260.53,av:4814567},{s:'Diversified',c:1,ac:2953.06,av:2356295},{s:'Consumer Durables',c:1,ac:3490.90,av:1142674},
+  {s:'Paints',c:1,ac:3019.38,av:1214614},{s:'Healthcare',c:1,ac:6191.42,av:432473},{s:'Retail',c:1,ac:4670.86,av:882025},
+  {s:'Construction',c:1,ac:3483.05,av:2418357},{s:'Capital Goods',c:1,ac:233.57,av:28472447},
+];
+const MONTHLY = [
+  {n:1,m:'Jan',c:2290.99,v:7019825},{n:2,m:'Feb',c:2363.60,v:7530579},{n:3,m:'Mar',c:2385.58,v:7959761},
+  {n:4,m:'Apr',c:2434.02,v:7201931},{n:5,m:'May',c:2445.88,v:7299168},{n:6,m:'Jun',c:2563.94,v:9880631},
+  {n:7,m:'Jul',c:2648.55,v:7377668},{n:8,m:'Aug',c:2684.57,v:6597077},{n:9,m:'Sep',c:2838.38,v:6645425},
+  {n:10,m:'Oct',c:2401.61,v:5330638},{n:11,m:'Nov',c:2269.92,v:5114317},{n:12,m:'Dec',c:2225.05,v:7062581},
+];
+const RR = [
+  {t:'TRENT',r:223.09,v:2.31},{t:'BEL',r:101.76,v:2.33},{t:'M&M',r:95.98,v:1.92},{t:'BAJAJ-AUTO',r:89.01,v:1.76},
+  {t:'BHARTIARTL',r:69.60,v:1.36},{t:'POWERGRID',r:68.85,v:1.87},{t:'BPCL',r:67.48,v:2.21},{t:'HEROMOTOCO',r:58.98,v:1.66},
+  {t:'SUNPHARMA',r:57.28,v:1.17},{t:'HCLTECH',r:53.26,v:1.43},{t:'NTPC',r:51.51,v:1.95},{t:'EICHERMOT',r:48.78,v:1.61},
+  {t:'SHRIRAMFIN',r:48.29,v:2.17},{t:'TECHM',r:43.68,v:1.60},{t:'COALINDIA',r:41.85,v:2.14},{t:'WIPRO',r:40.99,v:1.75},
+  {t:'ULTRACEMCO',r:36.97,v:1.43},{t:'ADANIPORTS',r:36.73,v:2.60},{t:'ICICIBANK',r:35.92,v:1.28},{t:'HINDALCO',r:35.87,v:1.96},
+  {t:'GRASIM',r:35.78,v:1.45},{t:'APOLLOHOSP',r:35.48,v:1.41},{t:'SBIN',r:35.34,v:1.79},{t:'ONGC',r:33.04,v:2.22},
+  {t:'INFY',r:32.65,v:1.45},{t:'TATAMOTORS',r:27.49,v:1.79},{t:'JSWSTEEL',r:26.89,v:1.64},{t:'CIPLA',r:25.68,v:1.63},
+  {t:'TCS',r:20.80,v:1.32},{t:'LT',r:17.25,v:1.70},{t:'HDFCBANK',r:15.75,v:1.35},{t:'SBILIFE',r:14.91,v:1.51},
+  {t:'TATASTEEL',r:11.55,v:1.82},{t:'DRREDDY',r:11.18,v:1.25},{t:'TATACONSUM',r:9.75,v:1.48},{t:'AXISBANK',r:9.74,v:1.56},
+  {t:'RELIANCE',r:9.17,v:1.36},{t:'HDFCLIFE',r:8.63,v:1.46},{t:'ITC',r:7.94,v:1.19},{t:'BRITANNIA',r:7.85,v:1.30},
+  {t:'MARUTI',r:6.93,v:1.37},{t:'TITAN',r:3.52,v:1.41},{t:'BAJAJFINSV',r:2.55,v:1.41},{t:'KOTAKBANK',r:1.99,v:1.42},
+  {t:'NESTLEIND',r:0.71,v:1.25},{t:'HINDUNILVR',r:-0.96,v:1.21},{t:'ADANIENT',r:-6.67,v:2.86},{t:'BAJFINANCE',r:-16.11,v:1.59},
+  {t:'ASIANPAINT',r:-21.94,v:1.27},{t:'INDUSINDBK',r:-30.46,v:1.91},
+];
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
+let cur = 0;
+const LABELS = ['Executive Overview','Sector Analysis','Monthly Trends','Risk & Return'];
+function goTo(n) {
+  ['s0','s1','s2','s3'].forEach((id,i)=>{ document.getElementById(id).classList.remove('active'); document.getElementById('tab'+i).classList.remove('active'); document.getElementById('d'+i).classList.remove('active'); });
+  cur = n;
+  document.getElementById('s'+n).classList.add('active');
+  document.getElementById('tab'+n).classList.add('active');
+  document.getElementById('d'+n).classList.add('active');
+  document.getElementById('pgLabel').textContent = LABELS[n];
+}
+function next() { goTo((cur+1)%4); }
+function prev() { goTo((cur+3)%4); }
+
+// ── CHART DEFAULTS ────────────────────────────────────────────────────────────
+Chart.defaults.color = '#94A3B8';
+Chart.defaults.font.family = 'Inter';
+Chart.defaults.font.size = 11;
+const TIP = { backgroundColor:'#1E293B', borderColor:'#334155', borderWidth:1, titleColor:'#F1F5F9', bodyColor:'#94A3B8', padding:10, cornerRadius:8 };
+
+// ── SLIDE 1 CHARTS ────────────────────────────────────────────────────────────
+new Chart('gainersChart',{ type:'bar', data:{ labels:GAINERS.map(d=>d.t), datasets:[{ data:GAINERS.map(d=>d.r), backgroundColor:GAINERS.map((_,i)=>`rgba(16,185,129,${0.45+i*0.04})`), borderColor:'#10B981', borderWidth:1, borderRadius:4 }] }, options:{ responsive:true, maintainAspectRatio:true, animation:{duration:700}, indexAxis:'y', plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{label:c=>` ${c.raw.toFixed(1)}% return`}}}, scales:{ x:{grid:{color:'rgba(51,65,85,0.5)'},ticks:{callback:v=>v+'%'}}, y:{grid:{display:false},ticks:{font:{size:10,weight:'600'},color:'#CBD5E1'}} } } });
+new Chart('losersChart',{ type:'bar', data:{ labels:LOSERS.map(d=>d.t), datasets:[{ data:LOSERS.map(d=>d.r), backgroundColor:LOSERS.map(d=>d.r<0?'rgba(239,68,68,0.6)':'rgba(245,158,11,0.5)'), borderColor:LOSERS.map(d=>d.r<0?'#EF4444':'#F59E0B'), borderWidth:1, borderRadius:4 }] }, options:{ responsive:true, maintainAspectRatio:true, animation:{duration:700}, indexAxis:'y', plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{label:c=>` ${c.raw.toFixed(1)}% return`}}}, scales:{ x:{grid:{color:'rgba(51,65,85,0.5)'},ticks:{callback:v=>v+'%'}}, y:{grid:{display:false},ticks:{font:{size:10,weight:'600'},color:'#CBD5E1'}} } } });
+
+// ── SLIDE 2 CHARTS ────────────────────────────────────────────────────────────
+const secByCount = [...SECTORS].sort((a,b)=>b.c-a.c);
+new Chart('secCountChart',{ type:'bar', data:{ labels:secByCount.map(s=>s.s), datasets:[{ data:secByCount.map(s=>s.c), backgroundColor:'rgba(14,165,233,0.55)', borderColor:'#0EA5E9', borderWidth:1, borderRadius:4 }] }, options:{ responsive:true, maintainAspectRatio:true, animation:{duration:700}, indexAxis:'y', plugins:{legend:{display:false},tooltip:{...TIP}}, scales:{ x:{grid:{color:'rgba(51,65,85,0.4)'},ticks:{stepSize:1}}, y:{grid:{display:false},ticks:{font:{size:9}}} } } });
+const secByClose = [...SECTORS].sort((a,b)=>b.ac-a.ac);
+new Chart('secCloseChart',{ type:'bar', data:{ labels:secByClose.map(s=>s.s.length>13?s.s.substring(0,13)+'…':s.s), datasets:[{ data:secByClose.map(s=>s.ac), backgroundColor:'rgba(245,158,11,0.55)', borderColor:'#F59E0B', borderWidth:1, borderRadius:4 }] }, options:{ responsive:true, maintainAspectRatio:true, animation:{duration:700}, plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{label:c=>` ₹${c.raw.toLocaleString(undefined,{minimumFractionDigits:2})}`}}}, scales:{ x:{grid:{display:false},ticks:{font:{size:9},maxRotation:45}}, y:{grid:{color:'rgba(51,65,85,0.4)'},ticks:{callback:v=>'₹'+v.toLocaleString()}} } } });
+const secByVol = [...SECTORS].sort((a,b)=>b.av-a.av);
+new Chart('secVolChart',{ type:'bar', data:{ labels:secByVol.map(s=>s.s.length>13?s.s.substring(0,13)+'…':s.s), datasets:[{ data:secByVol.map(s=>s.av), backgroundColor:'rgba(139,92,246,0.55)', borderColor:'#8B5CF6', borderWidth:1, borderRadius:4 }] }, options:{ responsive:true, maintainAspectRatio:true, animation:{duration:700}, plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{label:c=>` ${(c.raw/1e6).toFixed(2)}M avg vol`}}}, scales:{ x:{grid:{display:false},ticks:{font:{size:9},maxRotation:45}}, y:{grid:{color:'rgba(51,65,85,0.4)'},ticks:{callback:v=>(v/1e6).toFixed(1)+'M'}} } } });
+const secTbl = document.getElementById('secTable');
+secTbl.innerHTML = '<thead><tr><th>Sector</th><th>Stocks</th><th>Avg Close</th><th>Avg Volume</th></tr></thead>';
+const secB = document.createElement('tbody');
+SECTORS.sort((a,b)=>b.c-a.c).forEach(s=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td class="td-ticker">${s.s}</td><td class="td-hi">${s.c}</td><td class="td-hi">₹${s.ac.toLocaleString(undefined,{minimumFractionDigits:2})}</td><td>${(s.av/1e6).toFixed(2)}M</td>`; secB.appendChild(tr); });
+secTbl.appendChild(secB);
+
+// ── SLIDE 3 CHARTS ────────────────────────────────────────────────────────────
+new Chart('monthlyCombo',{ type:'bar', data:{ labels:MONTHLY.map(m=>m.m), datasets:[{ type:'bar', label:'Avg Volume', data:MONTHLY.map(m=>m.v), backgroundColor:'rgba(56,189,248,0.3)', borderColor:'#38BDF8', borderWidth:1, borderRadius:3, yAxisID:'y1' },{ type:'line', label:'Avg Close Price', data:MONTHLY.map(m=>m.c), borderColor:'#0EA5E9', backgroundColor:'rgba(14,165,233,0.07)', borderWidth:3, pointRadius:4, pointBackgroundColor:'#0EA5E9', tension:0.4, fill:true, yAxisID:'y' }] }, options:{ responsive:true, maintainAspectRatio:true, interaction:{mode:'index',intersect:false}, animation:{duration:700}, plugins:{ legend:{display:true,labels:{color:'#94A3B8',font:{size:11},boxWidth:12,padding:16}}, tooltip:{...TIP} }, scales:{ x:{grid:{color:'rgba(51,65,85,0.3)'}}, y:{type:'linear',position:'left',grid:{color:'rgba(51,65,85,0.3)'},ticks:{callback:v=>'₹'+v.toLocaleString()}}, y1:{type:'linear',position:'right',grid:{display:false},ticks:{callback:v=>(v/1e6).toFixed(1)+'M'}} } } });
+new Chart('monthlyClose',{ type:'bar', data:{ labels:MONTHLY.map(m=>m.m), datasets:[{ data:MONTHLY.map(m=>m.c), backgroundColor:MONTHLY.map(m=>{ const ratio=(m.c-2225)/(2838-2225); return `rgba(${Math.round(6+ratio*8)},${Math.round(182-ratio*17)},${Math.round(209+ratio*24)},0.75)`; }), borderColor:'#0EA5E9', borderWidth:1, borderRadius:4 }] }, options:{ responsive:true, maintainAspectRatio:true, animation:{duration:700}, plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{label:c=>` ₹${c.raw.toFixed(2)}`}}}, scales:{ x:{grid:{display:false}}, y:{grid:{color:'rgba(51,65,85,0.4)'},min:2100,ticks:{callback:v=>'₹'+v.toLocaleString()}} } } });
+const monTbl = document.getElementById('monthlyTable');
+monTbl.innerHTML = '<thead><tr><th>Month</th><th>Avg Close</th><th>Avg Volume</th><th>MoM</th></tr></thead>';
+const monB = document.createElement('tbody');
+MONTHLY.forEach((m,i)=>{ const tr=document.createElement('tr'); const trend=i===0?'—':(m.c>MONTHLY[i-1].c?'↑':'↓'); const tc=trend==='↑'?'td-gain':trend==='↓'?'td-loss':''; tr.innerHTML=`<td class="td-hi">${m.m}</td><td class="td-hi">₹${m.c.toFixed(0)}</td><td>${(m.v/1e6).toFixed(2)}M</td><td class="${tc}">${trend}</td>`; monB.appendChild(tr); });
+monTbl.appendChild(monB);
+
+// ── SLIDE 4 CHARTS ────────────────────────────────────────────────────────────
+const SCOLS = {'Banking':'#0EA5E9','Automobile':'#10B981','FMCG':'#F59E0B','Information Technology':'#8B5CF6','Energy':'#EF4444','Metals':'#94A3B8','Pharmaceuticals':'#06B6D4','Financial Services':'#F97316','Power':'#84CC16','Retail':'#EC4899','Telecommunication':'#A78BFA','Infrastructure':'#34D399','Diversified':'#FCD34D','Consumer Durables':'#FB923C','Paints':'#E879F9','Healthcare':'#4ADE80','Cement':'#CBD5E1','Insurance':'#67E8F9','Construction':'#A3E635','Capital Goods':'#FF6B6B'};
+const SMAP = {'TRENT':'Retail','BEL':'Capital Goods','M&M':'Automobile','BAJAJ-AUTO':'Automobile','BHARTIARTL':'Telecommunication','POWERGRID':'Power','BPCL':'Energy','HEROMOTOCO':'Automobile','SUNPHARMA':'Pharmaceuticals','HCLTECH':'Information Technology','NTPC':'Power','EICHERMOT':'Automobile','SHRIRAMFIN':'Financial Services','TECHM':'Information Technology','COALINDIA':'Energy','WIPRO':'Information Technology','ULTRACEMCO':'Cement','ADANIPORTS':'Infrastructure','ICICIBANK':'Banking','HINDALCO':'Metals','GRASIM':'Diversified','APOLLOHOSP':'Healthcare','SBIN':'Banking','ONGC':'Energy','INFY':'Information Technology','TATAMOTORS':'Automobile','JSWSTEEL':'Metals','CIPLA':'Pharmaceuticals','TCS':'Information Technology','LT':'Construction','HDFCBANK':'Banking','SBILIFE':'Insurance','TATASTEEL':'Metals','DRREDDY':'Pharmaceuticals','TATACONSUM':'FMCG','AXISBANK':'Banking','RELIANCE':'Energy','HDFCLIFE':'Insurance','ITC':'FMCG','BRITANNIA':'FMCG','MARUTI':'Automobile','TITAN':'Consumer Durables','BAJAJFINSV':'Financial Services','KOTAKBANK':'Banking','NESTLEIND':'FMCG','HINDUNILVR':'FMCG','ADANIENT':'Diversified','BAJFINANCE':'Financial Services','ASIANPAINT':'Paints','INDUSINDBK':'Banking'};
+new Chart('scatterChart',{ type:'scatter', data:{ datasets:[{ data:RR.map(d=>({x:d.v,y:d.r,ticker:d.t})), backgroundColor:RR.map(d=>(SCOLS[SMAP[d.t]]||'#64748B')+'BB'), borderColor:RR.map(d=>SCOLS[SMAP[d.t]]||'#64748B'), borderWidth:1, pointRadius:7, pointHoverRadius:10 }] }, options:{ responsive:true, maintainAspectRatio:true, animation:{duration:700}, plugins:{ legend:{display:false}, tooltip:{...TIP,callbacks:{label:c=>{ const d=c.raw; return [`📌 ${d.ticker}`,` Return: ${d.y.toFixed(2)}%`,` Volatility: ${d.x.toFixed(2)}%`]; }}} }, scales:{ x:{title:{display:true,text:'Annualized Volatility (%)',color:'#94A3B8'},grid:{color:'rgba(51,65,85,0.4)'},ticks:{callback:v=>v+'%'}}, y:{title:{display:true,text:'Yearly Return (%)',color:'#94A3B8'},grid:{color:'rgba(51,65,85,0.4)'},ticks:{callback:v=>v+'%'}} } } });
+const top20 = [...RR].sort((a,b)=>b.v-a.v).slice(0,20);
+new Chart('volChart',{ type:'bar', data:{ labels:top20.map(d=>d.t), datasets:[{ data:top20.map(d=>d.v), backgroundColor:top20.map(d=>d.v>=2.0?'rgba(239,68,68,0.65)':d.v>=1.5?'rgba(245,158,11,0.65)':'rgba(16,185,129,0.65)'), borderColor:top20.map(d=>d.v>=2.0?'#EF4444':d.v>=1.5?'#F59E0B':'#10B981'), borderWidth:1, borderRadius:3 }] }, options:{ responsive:true, maintainAspectRatio:true, animation:{duration:700}, indexAxis:'y', plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{label:c=>` Volatility: ${c.raw.toFixed(2)}%`}}}, scales:{ x:{grid:{color:'rgba(51,65,85,0.4)'},ticks:{callback:v=>v+'%'},min:0}, y:{grid:{display:false},ticks:{font:{size:9.5,weight:'600'},color:'#CBD5E1'}} } } });
+const rrTbl = document.getElementById('rrTable');
+rrTbl.innerHTML = '<thead><tr><th>#</th><th>Ticker</th><th>Yearly Return</th><th>Volatility</th><th>Risk Level</th></tr></thead>';
+const rrB = document.createElement('tbody');
+RR.forEach((d,i)=>{ const rc=d.r>=0?'td-gain':'td-loss'; let rb=d.v>=2.0?'<span class="risk-badge r-high">High</span>':d.v>=1.5?'<span class="risk-badge r-mid">Moderate</span>':'<span class="risk-badge r-low">Low</span>'; const tr=document.createElement('tr'); tr.innerHTML=`<td class="td-hi">${i+1}</td><td class="td-ticker">${d.t}</td><td class="${rc}">${d.r>=0?'+':''}${d.r.toFixed(2)}%</td><td class="td-hi">${d.v.toFixed(2)}%</td><td>${rb}</td>`; rrB.appendChild(tr); });
+rrTbl.appendChild(rrB);
+</script>
+</body>
+</html>
