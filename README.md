@@ -1,161 +1,385 @@
-# Data-Driven Stock Analysis: Power BI Solution & Analytics Platform
+📈 Data-Driven Stock Analysis Dashboard
 
-## Executive Summary
-This repository contains the complete **Microsoft Power BI Analytics Platform & Architecture** for **Data-Driven Stock Analysis: Organizing, Cleaning, and Visualizing Market Trends**.
+Executive Summary
 
-The solution analyzes daily market movements, moving averages (MA20/MA50), price volatility, annual percentage returns, cross-asset correlations, and sector performance across **Nifty 50 constituent stocks** (14,200 daily records).
+This project is a Data-Driven Stock Analysis Platform designed to organize, analyze, and visualize historical market data for Nifty 50 constituent stocks.
 
----
+The project combines Python, Pandas, SQLAlchemy, Streamlit, Plotly, and Microsoft Power BI.
 
-## Workspace & Project Folder Structure
+The dataset contains 14,200 daily stock records covering 50 Nifty 50 companies, with historical data from October 2023 to November 2024.
 
-```
-.
-├── reports/                         # Core CSV market datasets (11 files)
-│   ├── correlation_matrix.csv
-│   ├── daily_return.csv
-│   ├── market_summary.csv
-│   ├── monthly_analysis.csv
-│   ├── moving_average.csv
-│   ├── risk_return_analysis.csv
-│   ├── sector_analysis.csv
-│   ├── top_gainers.csv
-│   ├── top_losers.csv
-│   ├── volatility.csv
-│   └── yearly_return.csv
+The project provides:
+
+A Python + Streamlit analytics application
+
+A Microsoft Power BI interactive dashboard
+
+📊 Project Objectives
+
+The main objective is to transform raw stock-market data into meaningful financial insights.
+
+The analysis includes:
+
+Stock price trends
+
+Daily market movements
+
+Moving averages
+
+Monthly performance
+
+Yearly returns
+
+Stock volatility
+
+Risk vs. return analysis
+
+Sector-level analysis
+
+Trading volume analysis
+
+Top gainers and losers
+
+Stock return correlations
+
+🗂️ Project Structure
+
+stock-analysis-dashboard-mini-project-2/
 │
-└── powerbi/                         # Power BI Solution Architecture
-    ├── assets/                      # Graphic assets & blueprint diagrams
-    │
-    ├── dax/
-    │   └── measures.dax             # Production DAX measure repository (23 measures)
-    │
-    ├── documentation/
-    │   ├── data_dictionary.md       # Comprehensive column metadata, data types, nulls
-    │   ├── data_model.md            # Star schema architecture, keys, cardinality
-    │   └── build_steps.md           # Step-by-step PBIX build manual for Power BI Desktop
-    │
-    ├── power_query/                 # 12 Modular Power Query M Scripts
-    │   ├── correlation_matrix.m
-    │   ├── daily_return.m
-    │   ├── dim_company.m            # Dynamic Master Ticker & Sector Dimension
-    │   ├── market_summary.m
-    │   ├── monthly_analysis.m
-    │   ├── moving_average.m
-    │   ├── risk_return_analysis.m
-    │   ├── sector_analysis.m
-    │   ├── top_gainers.m
-    │   ├── top_losers.m
-    │   ├── volatility.m
-    │   └── yearly_return.m
-    │
-    ├── report_design/
-    │   └── dashboard_spec.md        # Layout grid & visual spec for all 5 report pages
-    │
-    └── theme/
-        └── finance_theme.json       # Custom Financial Power BI Theme JSON
-```
+├── analysis/
+├── data/
+│   ├── extracted_csv/
+│   └── processed/
+│       └── cleaned_stock.csv
+├── database/
+│   ├── connection.py
+│   ├── fetch_data.py
+│   ├── insert_data.py
+│   └── __init__.py
+├── extraction/
+├── notebooks/
+├── powerbi/
+│   └── Stock_Analysis12.pbix
+├── reports/
+├── streamlit_app/
+│   ├── app.py
+│   └── pages/
+├── utils/
+├── visualization/
+├── config.py
+├── logger.py
+├── main.py
+├── requirements.txt
+├── test_connection.py
+└── README.md
 
----
+📁 Dataset
 
-## Power BI Data Model Architecture (Star Schema)
+The project uses historical stock-market data for 50 Nifty 50 companies.
 
-The solution uses a **Star Schema Design** centered around `Dim_Company` and `Dim_Date`:
+Metric
 
-```
-               +--------------------+
-               |      Dim_Date      |
-               +---------+----------+
-                         |
-           +-------------+-------------+
-           | 1:*                       | 1:*
-           v                           v
-+------------------+       +-------------------+
-| Fact_DailyReturn |       |Fact_MovingAverage |
-+------------------+       +-------------------+
-           ^                           ^
-           | *:1                       | *:1
-           +-------------+-------------+
-                         |
-               +---------+----------+
-               |    Dim_Company     |
-               +----+----+-----+----+
-                    |    |     |
-            1:1     |    | 1:1 | 1:1
-   +----------------+    |     +----------------+
-   |                     v                      |
-+--+------------------+ +--+---------------+ +--+-------------------+
-| Risk_Return_Analysis| |  Yearly_Return   | |    Volatility        |
-+---------------------+ +------------------+ +----------------------+
-```
+Value
 
-### Relationship Summary
+Companies
 
-| Parent Table (1) | Child Table (*) | Relationship Type | Cross-Filter Direction | Key Column |
-| :--- | :--- | :--- | :--- | :--- |
-| `Dim_Company` | `Fact_DailyReturn` | One to Many (`1:*`) | Single | `Ticker` |
-| `Dim_Company` | `Fact_MovingAverage` | One to Many (`1:*`) | Single | `Ticker` |
-| `Dim_Date` | `Fact_DailyReturn` | One to Many (`1:*`) | Single | `TradeDate` |
-| `Dim_Date` | `Fact_MovingAverage` | One to Many (`1:*`) | Single | `TradeDate` |
-| `Dim_Company` | `Risk_Return_Analysis` | One to One (`1:1`) | Both | `Ticker` |
-| `Dim_Company` | `Yearly_Return` | One to One (`1:1`) | Both | `Ticker` |
-| `Dim_Company` | `Volatility` | One to One (`1:1`) | Both | `Ticker` |
-| `Sector_Analysis` | `Dim_Company` | One to Many (`1:*`) | Single | `Sector` |
+50
 
----
+Total Records
 
-## Report Page Architecture (5 Interactive Pages)
+14,200
 
-1. **Page 1: Executive Dashboard**
-   - High-level KPIs: Total Companies, Total Records, Avg Closing Price, Avg Yearly Return.
-   - Top 10 Gainers & Top 10 Losers Horizontal Bar Leaderboards.
-   - System Market Summary Matrix Table.
+Start Date
 
-2. **Page 2: Stock Analysis (Technical Trends)**
-   - Searchable Ticker Slicer & Date Range Slider.
-   - Interactive KPI Cards: Current Close, MA20, MA50, Volatility.
-   - Technical Price Trend Line Chart displaying Close Price vs 20-Day & 50-Day Moving Averages.
+2023-10-03
 
-3. **Page 3: Sector Analysis**
-   - Companies by Sector Bar Chart.
-   - Average Closing Price by Sector Column Chart.
-   - Average Daily Trading Volume by Sector Column Chart.
-   - Sector Comparative Matrix Grid.
+End Date
 
-4. **Page 4: Monthly Analysis**
-   - Monthly Combo Line & Column Chart (Average Volume Bars + Average Close Navy Line).
-   - Monthly Close Price Breakdown Column Chart.
-   - Monthly Performance Breakdown Grid.
+2024-11-22
 
-5. **Page 5: Risk & Correlation**
-   - Risk vs Return Scatter Plot (Volatility % vs Yearly Return %).
-   - Stock Volatility Ranking Bar Chart.
-   - 50 × 50 Cross-Asset Return Pearson Correlation Heatmap Matrix with diverging color scales.
+Processed dataset:
 
----
+data/processed/cleaned_stock.csv
 
-## How to Build the PBIX in Power BI Desktop
+Individual company datasets:
 
-For complete step-by-step instructions, refer to **[build_steps.md](file:///Users/anirudh/Desktop/stock-analysis-dashboard-mini-project-2/powerbi/documentation/build_steps.md)**.
+data/extracted_csv/
 
-### Quick Start Checklist:
-1. Open **Microsoft Power BI Desktop**.
-2. Go to **Transform Data** (Power Query Editor).
-3. Create new Blank Queries and paste the M script content from `powerbi/power_query/*.m` into the **Advanced Editor**.
-4. Apply & Load data.
-5. In **Model View**, establish the relationships documented in `powerbi/documentation/data_model.md`.
-6. Add measures from `powerbi/dax/measures.dax`.
-7. Import `powerbi/theme/finance_theme.json` via **View** > **Browse for themes**.
-8. Build visuals following `powerbi/report_design/dashboard_spec.md`.
-9. Save report as `Stock_Analysis_Dashboard.pbix`.
+📈 Power BI Dashboard
 
----
+The completed Power BI dashboard is available at:
 
-## Documentation Links
+powerbi/Stock_Analysis12.pbix
 
-- **[Data Dictionary](file:///Users/anirudh/Desktop/stock-analysis-dashboard-mini-project-2/powerbi/documentation/data_dictionary.md)**: Metadata, null counts, data types.
-- **[Data Model Spec](file:///Users/anirudh/Desktop/stock-analysis-dashboard-mini-project-2/powerbi/documentation/data_model.md)**: Cardinality, filtering logic, ER diagram.
-- **[DAX Measures](file:///Users/anirudh/Desktop/stock-analysis-dashboard-mini-project-2/powerbi/dax/measures.dax)**: Measure code repository.
-- **[Visual Specification](file:///Users/anirudh/Desktop/stock-analysis-dashboard-mini-project-2/powerbi/report_design/dashboard_spec.md)**: Page-by-page visual layouts.
-- **[Build Steps Guide](file:///Users/anirudh/Desktop/stock-analysis-dashboard-mini-project-2/powerbi/documentation/build_steps.md)**: Step-by-step PBIX creation guide.
-- **[Finance Theme JSON](file:///Users/anirudh/Desktop/stock-analysis-dashboard-mini-project-2/powerbi/theme/finance_theme.json)**: Custom Power BI color palette.
+The .pbix file contains the completed Power BI report, data model, calculations, relationships, filters, and visualizations.
+
+Dashboard Pages
+
+1. Executive Dashboard
+
+Total Companies
+
+Total Records
+
+Average Closing Price
+
+Average Yearly Return
+
+Top 10 Gainers
+
+Top 10 Losers
+
+Overall Market Summary
+
+2. Stock Analysis
+
+Stock/Ticker selection
+
+Date filtering
+
+Closing price analysis
+
+20-Day Moving Average
+
+50-Day Moving Average
+
+Volatility
+
+Interactive price trend analysis
+
+3. Sector Analysis
+
+Companies by sector
+
+Average closing price by sector
+
+Average trading volume by sector
+
+Sector comparison
+
+4. Monthly Analysis
+
+Monthly closing-price trends
+
+Monthly trading volume
+
+Average monthly close
+
+Monthly performance comparison
+
+5. Risk & Correlation
+
+Risk vs. Return analysis
+
+Stock volatility ranking
+
+Yearly return comparison
+
+Stock correlation analysis
+
+Cross-stock Pearson correlation matrix
+
+🖥️ Streamlit Application
+
+Main application:
+
+streamlit_app/app.py
+
+Run on macOS / Linux
+
+source venv/bin/activate
+pip install -r requirements.txt
+streamlit run streamlit_app/app.py
+
+Run on Windows
+
+venv\Scriptsctivate
+pip install -r requirements.txt
+streamlit run streamlit_app/app.py
+
+🗄️ Database
+
+Database-related components are located in:
+
+database/
+├── connection.py
+├── fetch_data.py
+└── insert_data.py
+
+The data-fetching workflow supports the processed CSV dataset used by the analytics application.
+
+🧹 Data Processing Pipeline
+
+Raw Stock Data
+      ↓
+Data Extraction
+      ↓
+Data Cleaning
+      ↓
+Data Transformation
+      ↓
+Processed Dataset
+      ↓
+Exploratory Data Analysis
+      ↓
+Financial Analysis
+      ↓
+Visualization
+      ↓
+Streamlit + Power BI
+
+The processed dataset contains:
+
+Ticker
+
+Open Price
+
+High Price
+
+Low Price
+
+Close Price
+
+Volume
+
+Trade Date
+
+Month
+
+📊 Analytical Techniques
+
+Moving Averages
+
+MA20
+
+MA50
+
+Returns
+
+Daily and yearly returns are analyzed to understand stock performance.
+
+Volatility
+
+Volatility is used as a measure of stock price risk.
+
+Risk vs Return
+
+Stocks are compared based on risk/volatility and investment return.
+
+Correlation
+
+Pearson correlation is used to identify relationships between stock returns.
+
+Sector Analysis
+
+Companies are grouped and compared at the sector level.
+
+🛠️ Technologies Used
+
+Technology
+
+Purpose
+
+Python
+
+Data processing and analytics
+
+Pandas
+
+Data manipulation
+
+NumPy
+
+Numerical computation
+
+SQLAlchemy
+
+Database connectivity
+
+MySQL
+
+Data storage
+
+Streamlit
+
+Interactive Python dashboard
+
+Plotly
+
+Interactive visualizations
+
+Power BI
+
+Business intelligence dashboard
+
+Jupyter Notebook
+
+Exploratory analysis
+
+Git & GitHub
+
+Version control
+
+📌 Power BI Report
+
+The completed Power BI report is:
+
+powerbi/Stock_Analysis12.pbix
+
+Open the file using Power BI Desktop on Windows to view and interact with the complete dashboard.
+
+Note: .pbix is the native Power BI Desktop report format.
+
+🔒 Git Ignore
+
+The repository excludes unnecessary generated and environment-specific files:
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+venv/
+.venv/
+
+.env
+*.env
+
+.DS_Store
+**/.DS_Store
+
+logs/
+*.log
+
+.ipynb_checkpoints/
+
+.vscode/
+.idea/
+
+👨‍💻 Author
+
+Anirudh R K
+
+Data Analytics / Python / Power BI Project
+
+🎯 Project Outcome
+
+This project demonstrates an end-to-end data analytics workflow:
+
+Data Collection
+      ↓
+Data Cleaning
+      ↓
+Data Processing
+      ↓
+Exploratory Data Analysis
+      ↓
+Financial Analysis
+      ↓
+Interactive Visualization
+      ↓
+Streamlit Dashboard
+      ↓
+Power BI Dashboard
+
+The final result is an interactive stock-market analytics solution for exploring Nifty 50 stock performance, trends, risk, returns, sectors, trading volume, and correlations.
